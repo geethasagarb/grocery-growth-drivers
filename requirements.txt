@@ -1,0 +1,6 @@
+dbt-duckdb>=1.11
+duckdb
+pandas
+statsmodels
+scipy
+matplotlib
