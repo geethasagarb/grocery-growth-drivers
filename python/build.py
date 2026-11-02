@@ -20,8 +20,11 @@ CHECKS = {
     "households_with_demographics": "SELECT COUNT(*) FROM stg_demographics",
     "campaigns": "SELECT COUNT(*) FROM stg_campaign_descriptions",
     "negative_retail_disc_rows": "SELECT COUNT(*) FROM stg_transactions WHERE retail_disc < 0",
+    "lines_without_product": "SELECT COUNT(*) FROM stg_transactions t ANTI JOIN stg_products p USING (product_id)",
+    "redemptions_without_campaign": "SELECT COUNT(*) FROM stg_coupon_redemptions r ANTI JOIN stg_campaign_descriptions c USING (campaign_id)",
+    "campaign_hh_not_in_transactions": "SELECT COUNT(*) FROM stg_campaigns c ANTI JOIN (SELECT DISTINCT household_id FROM stg_transactions) t USING (household_id)",
 }
-EXPECTED = {"transactions": 1_469_307, "households": 2_469}
+EXPECTED = {"transactions": 1_469_307, "households": 2_469, "redemptions_without_campaign": 0}
 
 
 def main() -> None:
