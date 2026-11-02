@@ -15,6 +15,6 @@
 | coupons | 116,204 | Which products each campaign's coupons covered |
 | coupon_redemptions | 2,102 | Coupons redeemed, by household and date |
 
-**Checked on load:** 2,469 households, 155,848 baskets, 457 stores. Purchases run from 2017-01-01 to 2018-01-01 (weeks 1–53; week 53 is partial). `retail_disc` and `coupon_disc` are stored as positive amounts.
+**Checked on load:** 2,469 households, 155,848 baskets, 457 stores. Timestamps in the file are UTC; converted to U.S. Eastern time (which the source weeks follow), purchases cover calendar 2017 exactly. Week 1 is a single day (Sunday, Jan 1); weeks 2–53 run Monday to Sunday (no purchases on Dec 25, so week 53 is Dec 26–31). `retail_disc` and `coupon_disc` are stored as positive amounts.
 
 **Known gap:** 4,836 transaction lines (17 product IDs, about $173 of $4.6M in sales) have no match in `products`. They're kept and labeled "Unknown" department.

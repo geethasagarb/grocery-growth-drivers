@@ -5,3 +5,8 @@ __pycache__/
 .ipynb_checkpoints/
 .DS_Store
 ~$*.pbix
+.venv/
+transform/target/
+transform/logs/
+transform/dbt_packages/
+logs/

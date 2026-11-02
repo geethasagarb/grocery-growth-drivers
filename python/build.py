@@ -1,38 +1,44 @@
-"""Build everything from data/raw/: run the SQL files in order, then print data checks.
+"""Rebuild everything from data/raw/: run dbt (models + tests), then export reporting tables.
 
-Usage (from repo root): python python/build.py
+Usage (from repo root, after `Rscript data/get_data.R`):
+    python python/build.py
 """
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import duckdb
 
 ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data" / "cj.duckdb"
-SQL_DIR = ROOT / "sql"
+TRANSFORM = ROOT / "transform"
+OUTPUTS = ROOT / "outputs"
+
+# Reporting tables exported for Power BI and the write-up.
+EXPORTS = ["rpt_weekly_growth", "rpt_period_decomposition"]
 
 CHECKS = {
     "transactions": "SELECT COUNT(*) FROM stg_transactions",
     "households": "SELECT COUNT(DISTINCT household_id) FROM stg_transactions",
-    "baskets": "SELECT COUNT(DISTINCT basket_id) FROM stg_transactions",
-    "stores": "SELECT COUNT(DISTINCT store_id) FROM stg_transactions",
-    "first_purchase": "SELECT MIN(transaction_ts) FROM stg_transactions",
-    "last_purchase": "SELECT MAX(transaction_ts) FROM stg_transactions",
-    "households_with_demographics": "SELECT COUNT(*) FROM stg_demographics",
-    "campaigns": "SELECT COUNT(*) FROM stg_campaign_descriptions",
-    "negative_retail_disc_rows": "SELECT COUNT(*) FROM stg_transactions WHERE retail_disc < 0",
-    "lines_without_product": "SELECT COUNT(*) FROM stg_transactions t ANTI JOIN stg_products p USING (product_id)",
-    "redemptions_without_campaign": "SELECT COUNT(*) FROM stg_coupon_redemptions r ANTI JOIN stg_campaign_descriptions c USING (campaign_id)",
-    "campaign_hh_not_in_transactions": "SELECT COUNT(*) FROM stg_campaigns c ANTI JOIN (SELECT DISTINCT household_id FROM stg_transactions) t USING (household_id)",
+    "baskets": "SELECT COUNT(*) FROM fct_basket",
+    "first_purchase_local": "SELECT MIN(transaction_ts) FROM stg_transactions",
+    "last_purchase_local": "SELECT MAX(transaction_ts) FROM stg_transactions",
+    "full_weeks_in_report": "SELECT COUNT(*) FROM rpt_weekly_growth",
 }
-EXPECTED = {"transactions": 1_469_307, "households": 2_469, "redemptions_without_campaign": 0}
+EXPECTED = {"transactions": 1_469_307, "households": 2_469, "baskets": 155_848, "full_weeks_in_report": 52}
+
+
+def run_dbt() -> None:
+    dbt = shutil.which("dbt", path=str(Path(sys.executable).parent)) or "dbt"
+    result = subprocess.run([dbt, "build", "--profiles-dir", "."], cwd=TRANSFORM)
+    if result.returncode != 0:
+        sys.exit("dbt build failed; see the output above")
 
 
 def main() -> None:
-    con = duckdb.connect(str(DB))
-    con.execute(f"SET file_search_path = '{ROOT}'")
-    for sql_file in sorted(SQL_DIR.glob("*.sql")):
-        print(f"running {sql_file.name}")
-        con.execute(sql_file.read_text())
+    run_dbt()
+    con = duckdb.connect(str(DB), read_only=True)
 
     print("\nData checks")
     for name, query in CHECKS.items():
@@ -40,7 +46,14 @@ def main() -> None:
         flag = ""
         if name in EXPECTED:
             flag = "ok" if value == EXPECTED[name] else f"EXPECTED {EXPECTED[name]}"
-        print(f"  {name:<30} {value!s:<22} {flag}")
+        print(f"  {name:<24} {value!s:<22} {flag}")
+
+    OUTPUTS.mkdir(exist_ok=True)
+    print("\nExports")
+    for table in EXPORTS:
+        path = OUTPUTS / f"{table}.csv"
+        con.execute(f"COPY {table} TO '{path}' (HEADER, DELIMITER ',')")
+        print(f"  {path.relative_to(ROOT)}")
     con.close()
 
 

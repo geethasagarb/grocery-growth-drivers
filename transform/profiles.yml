@@ -1,0 +1,7 @@
+grocery_growth:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/cj.duckdb
+      threads: 4
