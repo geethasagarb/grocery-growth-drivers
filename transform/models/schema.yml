@@ -1,0 +1,87 @@
+version: 2
+
+models:
+  - name: stg_transactions
+    description: Raw item lines from 84.51° The Complete Journey (2017), typed.
+    columns:
+      - name: household_id
+        tests: [not_null]
+      - name: basket_id
+        tests: [not_null]
+      - name: sales_value
+        tests: [not_null]
+
+  - name: dim_product
+    description: One row per product, with department group and private-label flag.
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+      - name: dept_group
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['fresh', 'center_store', 'fuel', 'drug_gm', 'other']
+
+  - name: dim_date
+    description: One row per day; week from the source, 4-week periods from week 2.
+    columns:
+      - name: date_day
+        tests: [unique, not_null]
+
+  - name: dim_household
+    description: One row per household with demographics (when available) and lifetime activity.
+    columns:
+      - name: household_id
+        tests: [unique, not_null]
+
+  - name: dim_campaign
+    columns:
+      - name: campaign_id
+        tests: [unique, not_null]
+      - name: campaign_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['Type A', 'Type B', 'Type C']
+
+  - name: fct_sales_line
+    description: One row per item line.
+    columns:
+      - name: sales_line_id
+        tests: [unique, not_null]
+      - name: household_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_household')
+                field: household_id
+      - name: product_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_product')
+                field: product_id
+      - name: transaction_date
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
+
+  - name: fct_basket
+    description: One row per shopping trip with sales split by department group.
+    columns:
+      - name: basket_id
+        tests: [unique, not_null]
+
+  - name: rpt_weekly_growth
+    description: Weekly sales ex fuel = active households x trips per household x spend per trip (weeks 2-53).
+    columns:
+      - name: week
+        tests: [unique, not_null]
+
+  - name: rpt_period_decomposition
+    description: 4-week periods and the log-change contribution of households, frequency and basket.
+    columns:
+      - name: period_4wk
+        tests: [unique, not_null]

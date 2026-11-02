@@ -13,16 +13,18 @@
 
 ## Data facts (checked)
 - 84.51° The Complete Journey (CC0). 2,469 households, 1,469,307 transaction rows, 155,848 baskets, 457 stores.
-- Calendar 2017 (2017-01-01 to 2018-01-01, weeks 1–53; week 53 partial). 27 campaigns (types A, B, C). Demographics for 801 households.
+- Timestamps in the file are UTC; source weeks follow U.S. Eastern time. In Eastern time the data is exactly calendar 2017. Week 1 is one day (Jan 1); weeks 2–53 are full weeks (Dec 25 has no purchases). Analysis uses weeks 2–53 = 13 four-week periods.
+- 27 campaigns (types A, B, C). Demographics for 801 households. 17 product IDs (about $173) are missing from products; kept as UNKNOWN.
 - `retail_disc`, `coupon_disc` are positive amounts. Raw CSVs live in data/raw/ (gitignored). DuckDB file is data/cj.duckdb (gitignored).
 
 ## Stack and layout
-- DuckDB SQL in sql/ (numbered, run in order by python/build.py). Python 3.12 (pandas, duckdb, statsmodels, scipy, matplotlib). R only for data download (data/get_data.R).
+- dbt-duckdb project in transform/ (staging tables, then marts: dim_date, dim_product, dim_household, dim_campaign, fct_sales_line, fct_basket, then reporting: rpt_*). Tests in transform/models/schema.yml and transform/tests/. profiles.yml lives in transform/ (path ../data/cj.duckdb).
+- python/build.py runs `dbt build` and exports the rpt_* tables to outputs/. Python deps in requirements.txt (use a .venv). R only for data download (data/get_data.R).
 - outputs/: small aggregated CSVs for Power BI (committed). powerbi/: .pbix + screenshots. docs/memo.md: findings.
 
 ## Plan and status
 - [x] PR 1: scaffold + data pipeline (Mac)
-- [ ] PR 2: star schema + weekly growth decomposition (Mac)
+- [x] PR 2: dbt project, star schema + weekly / 4-week growth decomposition (Mac). First finding: P13 vs P1 sales ex fuel +10.0 log pts = households +2.9, trips per household −2.0, spend per trip +9.1
 - [ ] PR 3: segments + campaign lift + coupon funnel, export outputs/ (Mac)
 - [ ] PR 4: Power BI dashboard, 3 pages (Growth drivers, Segments, Campaigns & coupons) from outputs/*.csv (Windows)
 - [ ] PR 5: memo + README findings, in the owner's own voice; "My take" written from the owner's answers, never invented
