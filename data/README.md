@@ -2,7 +2,7 @@
 
 **Source:** [84.51° The Complete Journey](https://cran.r-project.org/web/packages/completejourney/index.html) via the R package `completejourney` (files hosted at [bradleyboehmke/completejourney](https://github.com/bradleyboehmke/completejourney/tree/master/data)). License: CC0.
 
-`Rscript data/get_data.R` writes these CSVs to `data/raw/` (gitignored, about 680 MB):
+`python python/pipeline.py extract` downloads the package's .rda/.rds files, reads them with pyreadr and writes these CSVs to `data/raw/` (gitignored, about 680 MB). Every table is checked against the row counts below:
 
 | Table | Rows | What it is |
 |---|---|---|
@@ -18,3 +18,7 @@
 **Checked on load:** 2,469 households, 155,848 baskets, 457 stores. Timestamps in the file are UTC; converted to U.S. Eastern time (which the source weeks follow), purchases cover calendar 2017 exactly. Week 1 is a single day (Sunday, Jan 1); weeks 2–53 run Monday to Sunday (no purchases on Dec 25, so week 53 is Dec 26–31). `retail_disc` and `coupon_disc` are stored as positive amounts.
 
 **Known gap:** 4,836 transaction lines (17 product IDs, about $173 of $4.6M in sales) have no match in `products`. They're kept and labeled "Unknown" department.
+
+**Floating-point leftovers:** 28 money values in `transactions` are tiny non-zero numbers such as 2.2e-16 (zero in practice). RAW keeps them as delivered; staging rounds to cents.
+
+**Missing values:** blank in the CSVs. The R export wrote the text "NA" instead. Both load as NULL.
