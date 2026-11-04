@@ -18,14 +18,17 @@ I'm answering that with real household-level grocery data from 84.51° (Kroger's
 
 ## How it's built
 - **dbt + DuckDB** (`transform/`): staging, then a star schema (dim_date, dim_product, dim_household, dim_campaign, fct_sales_line, fct_basket), then reporting models. 43 tests, including checks that households × trips × spend adds back to sales exactly.
-- **Python** (`python/`): runs dbt and exports reporting tables to `outputs/` for Power BI.
+- **Python** (`python/`): extracts the source files, loads them into Snowflake RAW with row-count checks, runs dbt and exports reporting tables to `outputs/` for Power BI.
+- **Snowflake** (`snowflake/`): setup and RAW table scripts. I'm moving the dbt models from DuckDB to Snowflake next.
 - **Power BI** (`powerbi/`): dashboard, in progress.
 
 ## How to run
 ```
 python -m venv .venv && .venv/bin/pip install -r requirements.txt
-Rscript data/get_data.R                # downloads the data to data/raw/ (not committed)
-.venv/bin/python python/build.py       # dbt build (models + tests), then exports to outputs/
+.venv/bin/python python/pipeline.py extract   # downloads the data to data/raw/ (not committed)
+.venv/bin/python python/build.py              # dbt build on DuckDB (models + tests), then exports to outputs/
+.venv/bin/python python/pipeline.py setup     # Snowflake: one-time objects (see snowflake/README.md)
+.venv/bin/python python/pipeline.py load      # Snowflake: PUT + COPY INTO RAW, row-count checks
 ```
 
 Data: [84.51° The Complete Journey](https://cran.r-project.org/web/packages/completejourney/index.html), CC0. Independent project; not affiliated with Kroger or 84.51°.

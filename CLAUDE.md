@@ -15,12 +15,12 @@
 - 84.51° The Complete Journey (CC0). 2,469 households, 1,469,307 transaction rows, 155,848 baskets, 457 stores.
 - Timestamps in the file are UTC; source weeks follow U.S. Eastern time. In Eastern time the data is exactly calendar 2017. Week 1 is one day (Jan 1); weeks 2–53 are full weeks (Dec 25 has no purchases). Analysis uses weeks 2–53 = 13 four-week periods.
 - 27 campaigns (types A, B, C). Demographics for 801 households. 17 product IDs (about $173) are missing from products; kept as UNKNOWN.
-- `retail_disc`, `coupon_disc` are positive amounts. Raw CSVs live in data/raw/ (gitignored). DuckDB file is data/cj.duckdb (gitignored).
+- `retail_disc`, `coupon_disc` are positive amounts. 28 money values are floating-point leftovers like 2.2e-16; RAW stores money as float, staging rounds to cents. Raw CSVs live in data/raw/ (gitignored). DuckDB file is data/cj.duckdb (gitignored).
 
 ## Direction (decided 2026-11-02): Snowflake end to end
 The repo should read as an industry-standard warehouse project:
 source files, then Snowflake RAW, then dbt transformations in Snowflake, then Power BI connected to Snowflake, plus Snowflake Cortex answering the business questions.
-- Source: the completejourney files published by Brad Boehmke on GitHub (what data/get_data.R uses today). Extraction moves to Python.
+- Source: the completejourney files published by Brad Boehmke on GitHub (.rda/.rds files in its data/ folder). Extracted in Python with pyreadr (python/ggd/extract.py).
 - Load: Python loader creates the database, schemas (RAW, then dbt schemas for staging, marts, reporting), warehouse and role; PUTs files to an internal stage; COPY INTO RAW tables; checks row counts against the data facts above.
 - Transform: same dbt project, switched to dbt-snowflake.
 - AI: Cortex Analyst semantic model over the marts, and a Cortex Agent on top. Keep a committed set of test questions with expected answers so agent accuracy is checked, not assumed.
@@ -31,7 +31,8 @@ source files, then Snowflake RAW, then dbt transformations in Snowflake, then Po
 
 ## Stack and layout
 - Current (DuckDB, to be replaced): dbt-duckdb project in transform/ (staging tables, then marts: dim_date, dim_product, dim_household, dim_campaign, fct_sales_line, fct_basket, then reporting: rpt_*). Tests in transform/models/schema.yml and transform/tests/. profiles.yml lives in transform/ (path ../data/cj.duckdb).
-- python/build.py runs `dbt build` and exports the rpt_* tables to outputs/. Python deps in requirements.txt (use a .venv). R only for data download (data/get_data.R) until extraction moves to Python.
+- python/pipeline.py is the entry point for extract, setup and load, with the package in python/ggd/ (config, extract, snowflake_conn, load). python/build.py runs `dbt build` on DuckDB and exports the rpt_* tables to outputs/. Python deps in requirements.txt (use a .venv). R is no longer needed: extraction reads the .rda/.rds files with pyreadr and matches the old R output (checked table by table).
+- snowflake/: setup.sql (role GGD_ROLE, warehouse GGD_WH, database GROCERY_GROWTH, schemas RAW/STAGING/MARTS/REPORTING), raw_tables.sql (file format, stage, RAW tables) and README.md (key-pair connection setup).
 - Target Python layout: python/build.py as a thin entry point, with a package under python/ (config, Snowflake connection, extract, load, export, and analysis/ with segments, campaign_lift, coupon_funnel).
 - outputs/: small aggregated CSVs (committed). powerbi/: .pbix + screenshots. docs/memo.md: findings.
 
@@ -45,7 +46,7 @@ source files, then Snowflake RAW, then dbt transformations in Snowflake, then Po
 Steps are named, not numbered by PR, because GitHub PR numbers don't line up with the plan.
 - [x] Data pipeline: scaffold, download, DuckDB staging (GitHub #1)
 - [x] dbt project, star schema, weekly / 4-week growth decomposition (GitHub #2, which merged into data-pipeline; #3 brought it into main). First finding: P13 vs P1 sales ex fuel +10.0 log pts = households +2.9, trips per household −2.0, spend per trip +9.1
-- [ ] Snowflake setup and load: Python extract, stage, COPY INTO RAW, row-count checks
+- [ ] Snowflake setup and load: Python extract, stage, COPY INTO RAW, row-count checks. Code done and extract verified; the load has not run yet, because it waits on the owner's trial account and ~/.snowflake/connections.toml
 - [ ] dbt on Snowflake: dbt-snowflake target, fix DuckDB-only SQL, all tests pass; then remove the DuckDB path
 - [ ] Analysis: segments + coupon funnel as dbt models; campaign lift (diff-in-diff, pre-trend, bootstrap CIs, placebo) in Python reading from Snowflake
 - [ ] Cortex: semantic model, Cortex Agent, test question set
